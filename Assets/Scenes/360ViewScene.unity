@@ -246,24 +246,26 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 185712795}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 347ba24f34978c74c82900af6f7c6964, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   captureCamera: {fileID: 185712797}
   videoPlayer: {fileID: 579194935}
+  videoFolderPath: "C:\\Users\\liweikuo\\Videos\\lab_360video_0511_1\\\u88DC\u62CD"
+  targetRenderTexture: {fileID: 8400000, guid: 73464f0c816d4874ba1a8d8a3c15fa8c, type: 2}
   captureIntervalSeconds: 0.5
   resolution: 800
   fieldOfView: 60
-  outputFolderName: PanoramaVideoOutput
+  outputRootPath: "C:\\Users\\liweikuo\\Videos\\lab_360video_0511_1\\\u88DC\u62CD"
   angleSamplingMode: 1
   pitchGroupCount: 5
   yawGroupCount: 12
   customPitchAngles:
-  - 35
+  - 20
   - 0
-  - -35
+  - -20
   customYawAngles:
   - 70
   - 90
@@ -276,7 +278,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 185712795}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 09037a63d217b6749a0226cee8ac3364, type: 3}
   m_Name: 
@@ -599,7 +601,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1777202956
 MonoBehaviour:
   m_ObjectHideFlags: 0

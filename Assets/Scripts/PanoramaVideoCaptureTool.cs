@@ -13,13 +13,21 @@ public class PanoramaVideoCaptureTool : MonoBehaviour
     [Header("Video Source")]
     public VideoPlayer videoPlayer;
 
-    [Tooltip("¨C¼½©ñ´X¬íºI¹Ï¤@¦¸")]
+    [Tooltip("å½±ç‰‡è³‡æ–™å¤¾è·¯å¾‘ï¼ˆæœƒä¾åºè™•ç†è³‡æ–™å¤¾å…§æ‰€æœ‰å½±ç‰‡ï¼‰")]
+    public string videoFolderPath;
+
+    [Tooltip("VideoPlayer è¼¸å‡ºç”¨çš„ RenderTextureï¼Œæˆªåœ–æµç¨‹é–‹å§‹å‰æœƒè‡ªå‹•å¥—ç”¨è‡³ videoPlayer.targetTexture")]
+    public RenderTexture targetRenderTexture;
+
+    [Tooltip("ï¿½Cï¿½ï¿½ï¿½ï¿½Xï¿½ï¿½ï¿½Iï¿½Ï¤@ï¿½ï¿½")]
     public float captureIntervalSeconds = 2f;
 
     [Header("Output")]
     public int resolution = 1024;
     public float fieldOfView = 60f;
-    public string outputFolderName = "PanoramaVideoOutput";
+
+    [Tooltip("æˆªåœ–è¼¸å‡ºæ ¹ç›®éŒ„ï¼ˆçµ•å°è·¯å¾‘ï¼‰")]
+    public string outputRootPath;
 
     [Header("Angle Sampling Mode")]
     public AngleSamplingMode angleSamplingMode = AngleSamplingMode.AutoGenerate;
@@ -61,10 +69,40 @@ public class PanoramaVideoCaptureTool : MonoBehaviour
     void Start()
     {
         if (captureCamera == null)
-            throw new Exception("©|¥¼«ü©w captureCamera");
+            throw new Exception("ï¿½|ï¿½ï¿½ï¿½ï¿½ï¿½w captureCamera");
 
         if (videoPlayer == null)
-            throw new Exception("©|¥¼«ü©w videoPlayer");
+            throw new Exception("ï¿½|ï¿½ï¿½ï¿½ï¿½ï¿½w videoPlayer");
+
+        if (string.IsNullOrEmpty(videoFolderPath) || !Directory.Exists(videoFolderPath))
+        {
+            Debug.LogWarning($"[PanoramaVideoCaptureTool] videoFolderPath ç„¡æ•ˆæˆ–ä¸å­˜åœ¨: \"{videoFolderPath}\"ï¼Œæˆªåœ–ç¨‹åºå–æ¶ˆã€‚");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(outputRootPath) || !Directory.Exists(outputRootPath))
+        {
+            Debug.LogWarning($"[PanoramaVideoCaptureTool] outputRootPath ç„¡æ•ˆæˆ–ä¸å­˜åœ¨: \"{outputRootPath}\"ï¼Œæˆªåœ–ç¨‹åºå–æ¶ˆã€‚");
+            return;
+        }
+
+        if (targetRenderTexture == null)
+        {
+            Debug.LogWarning("[PanoramaVideoCaptureTool] targetRenderTexture ç‚ºç©ºï¼Œæˆªåœ–ç¨‹åºå–æ¶ˆã€‚");
+            return;
+        }
+
+        string[] allFiles = Directory.GetFiles(videoFolderPath, "*.*");
+        bool hasVideo = false;
+        foreach (string f in allFiles)
+        {
+            if (IsVideoFile(f)) { hasVideo = true; break; }
+        }
+        if (!hasVideo)
+        {
+            Debug.LogWarning($"[PanoramaVideoCaptureTool] videoFolderPath å…§æ‰¾ä¸åˆ°ä»»ä½•å½±ç‰‡æª”æ¡ˆï¼Œæˆªåœ–ç¨‹åºå–æ¶ˆã€‚");
+            return;
+        }
 
         SetupCamera();
 
@@ -73,7 +111,9 @@ public class PanoramaVideoCaptureTool : MonoBehaviour
 
         GetSamplingAngles(out pitchAngles, out yawAngles);
 
-        StartCoroutine(CaptureFromVideo(pitchAngles, yawAngles));
+        videoPlayer.targetTexture = targetRenderTexture;
+
+        StartCoroutine(ProcessAllVideos(pitchAngles, yawAngles));
     }
 
     void SetupCamera()
@@ -91,10 +131,10 @@ public class PanoramaVideoCaptureTool : MonoBehaviour
         if (angleSamplingMode == AngleSamplingMode.CustomArray)
         {
             if (customPitchAngles == null || customPitchAngles.Length == 0)
-                throw new Exception("Custom mode ±Ò¥Î¡A¦ı customPitchAngles ¬°ªÅ");
+                throw new Exception("Custom mode ï¿½Ò¥Î¡Aï¿½ï¿½ customPitchAngles ï¿½ï¿½ï¿½ï¿½");
 
             if (customYawAngles == null || customYawAngles.Length == 0)
-                throw new Exception("Custom mode ±Ò¥Î¡A¦ı customYawAngles ¬°ªÅ");
+                throw new Exception("Custom mode ï¿½Ò¥Î¡Aï¿½ï¿½ customYawAngles ï¿½ï¿½ï¿½ï¿½");
 
             pitchAngles.AddRange(customPitchAngles);
             yawAngles.AddRange(customYawAngles);
@@ -112,10 +152,10 @@ public class PanoramaVideoCaptureTool : MonoBehaviour
         int pitchDivisor = pitchGroupCount + 1;
 
         if (180 % pitchDivisor != 0)
-            throw new Exception($"Pitch ³]©w¿ù»~¡G180 µLªk³Q (pitchGroupCount + 1) = {pitchDivisor} ¾ã°£");
+            throw new Exception($"Pitch ï¿½]ï¿½wï¿½ï¿½ï¿½~ï¿½G180 ï¿½Lï¿½kï¿½Q (pitchGroupCount + 1) = {pitchDivisor} ï¿½ã°£");
 
         if (360 % yawGroupCount != 0)
-            throw new Exception($"Yaw ³]©w¿ù»~¡G360 µLªk³Q yawGroupCount = {yawGroupCount} ¾ã°£");
+            throw new Exception($"Yaw ï¿½]ï¿½wï¿½ï¿½ï¿½~ï¿½G360 ï¿½Lï¿½kï¿½Q yawGroupCount = {yawGroupCount} ï¿½ã°£");
     }
 
     List<float> GeneratePitchAngles(int count)
@@ -145,37 +185,65 @@ public class PanoramaVideoCaptureTool : MonoBehaviour
         return result;
     }
 
-    IEnumerator CaptureFromVideo(List<float> pitchAngles, List<float> yawAngles)
+    bool IsVideoFile(string path)
     {
-        if (!videoPlayer.isPrepared)
-        {
-            videoPlayer.Prepare();
-            while (!videoPlayer.isPrepared)
-                yield return null;
-        }
+        string ext = Path.GetExtension(path).ToLower();
+        return ext == ".mp4" || ext == ".mov" || ext == ".avi" || ext == ".mkv";
+    }
 
-        string rootDir = Path.Combine(Application.dataPath, outputFolderName);
+    IEnumerator ProcessAllVideos(List<float> pitchAngles, List<float> yawAngles)
+    {
+        string[] files = Directory.GetFiles(videoFolderPath, "*.*");
+        Array.Sort(files);
+
+        string rootDir = outputRootPath;
         Directory.CreateDirectory(rootDir);
 
-        string timeStamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-        string sessionDir = Path.Combine(rootDir, timeStamp);
-        Directory.CreateDirectory(sessionDir);
+        string batchName = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+        string batchDir = Path.Combine(rootDir, batchName);
+        Directory.CreateDirectory(batchDir);
 
-        Debug.Log($"Video capture output folder: {sessionDir}");
+        Debug.Log($"Panorama video capture output folder: {batchDir}");
+
+        foreach (string file in files)
+        {
+            if (!IsVideoFile(file))
+                continue;
+
+            Debug.Log("è™•ç†å½±ç‰‡: " + file);
+            yield return StartCoroutine(CaptureFromVideo(file, batchDir, pitchAngles, yawAngles));
+        }
+
+        Debug.Log("æ‰€æœ‰å½±ç‰‡è™•ç†å®Œæˆ");
+    }
+
+    IEnumerator CaptureFromVideo(string videoPath, string batchDir, List<float> pitchAngles, List<float> yawAngles)
+    {
+        videoPlayer.source = VideoSource.Url;
+        videoPlayer.url = videoPath;
+        videoPlayer.Stop();
+        videoFinished = false;
+
+        videoPlayer.Prepare();
+        while (!videoPlayer.isPrepared)
+            yield return null;
+
+        string videoName = Path.GetFileNameWithoutExtension(videoPath);
+        string sessionDir = Path.Combine(batchDir, videoName);
+        Directory.CreateDirectory(sessionDir);
 
         RenderTexture rt = new RenderTexture(resolution, resolution, 24);
         Texture2D tex = new Texture2D(resolution, resolution, TextureFormat.RGB24, false);
 
         captureCamera.targetTexture = rt;
 
-        videoFinished = false;
         videoPlayer.Play();
 
         double nextCaptureTime = captureIntervalSeconds;
 
         while (!videoFinished)
         {
-            // µ¥«İ¨ì¤U¤@­ÓºI¹Ï®É¶¡©Î¼v¤ùµ²§ô
+            // ï¿½ï¿½ï¿½İ¨ï¿½Uï¿½@ï¿½ÓºIï¿½Ï®É¶ï¿½ï¿½Î¼vï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
             while (!videoFinished &&
                    videoPlayer.time < nextCaptureTime &&
                    videoPlayer.isPlaying)
@@ -186,9 +254,9 @@ public class PanoramaVideoCaptureTool : MonoBehaviour
             if (videoFinished)
                 break;
 
-            // ¨ì®É¶¡ÂI ¡÷ ¼È°±
+            // ï¿½ï¿½É¶ï¿½ï¿½I ï¿½ï¿½ ï¿½È°ï¿½
             videoPlayer.Pause();
-            yield return null; // µ¥¤@´V½T«Oµe­±Ã­©w
+            yield return null; // ï¿½ï¿½ï¿½@ï¿½Vï¿½Tï¿½Oï¿½eï¿½ï¿½Ã­ï¿½w
 
             Debug.Log($"Capture at {videoPlayer.time:F2} sec");
 
@@ -221,7 +289,7 @@ public class PanoramaVideoCaptureTool : MonoBehaviour
                 videoPlayer.Play();
         }
 
-        // === µ²§ô²M²z ===
+        // === ï¿½ï¿½ï¿½ï¿½ï¿½Mï¿½z ===
         captureCamera.targetTexture = null;
         RenderTexture.active = null;
 
@@ -230,8 +298,8 @@ public class PanoramaVideoCaptureTool : MonoBehaviour
 
         captureCamera.transform.localRotation = Quaternion.identity;
 
-        videoPlayer.Stop();  // ½T«O¤£·|¦A­«¼½
+        videoPlayer.Stop();  // ï¿½Tï¿½Oï¿½ï¿½ï¿½|ï¿½Aï¿½ï¿½ï¿½ï¿½
 
-        Debug.Log("Video capture completed. All processes stopped.");
+        Debug.Log($"å®Œæˆå½±ç‰‡: {videoName}");
     }
 }
